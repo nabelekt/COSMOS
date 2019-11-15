@@ -20,12 +20,14 @@ Cosmos.catch_fatal_exception do
   require 'cosmos/gui/widgets/realtime_button_bar'
   require 'cosmos/tools/data_viewer/data_viewer_component'
   require 'cosmos/tools/data_viewer/dump_component'
+  require 'cosmos/tools/data_viewer/text_component'
   require 'cosmos/config/config_parser'
   require 'cosmos/script'
 end
 
 module Cosmos
-
+  # Displays data in text format. Useful for telemetry that doesn't work well with
+  # telemetry screens such as memory dumps or large amounts of text.
   class DataViewer < QtTool
     slots 'context_menu(const QPoint&)'
     slots 'handle_tab_change(int)'
@@ -80,7 +82,8 @@ module Cosmos
             component.initialize_gui
             @tab_book.addTab(component, component.tab_name)
           end
-          if @auto_start
+          toggle_replay_mode() if options.replay
+          if @auto_start || options.start
             handle_start()
           end
           ConfigParser.splash = nil
@@ -767,17 +770,20 @@ module Cosmos
           options.width = 550
           options.height = 500
           options.title = "Data Viewer"
-          options.config_file = 'data_viewer.txt'
+          options.start = false
+          options.replay = false
+          options.config_file = true # config_file is required
           option_parser.separator "Data Viewer Specific Options:"
-          option_parser.on("-c", "--config FILE", "Use the specified configuration file") do |arg|
-            options.config_file = arg
+          option_parser.on("-s", "--start", "Start processing immediately") do |arg|
+            options.start = true
+          end
+          option_parser.on("--replay", "Start Data Viewer in Replay mode") do
+            options.replay = true
           end
         end
 
         super(option_parser, options)
       end
     end
-
-  end # class DataViewer
-
-end # module Cosmos
+  end
+end

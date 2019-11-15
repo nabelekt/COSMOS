@@ -12,6 +12,8 @@ require 'cosmos/tools/tlm_viewer/widgets/widget'
 require 'cosmos/tools/tlm_viewer/widgets/canvas_clickable'
 
 module Cosmos
+  # Displays an image on a canvas. The image is loaded from file first by
+  # looking in the target's screens directory and then the COSMOS data path.
   class CanvasimageWidget
     include Widget
     include CanvasClickable
@@ -20,15 +22,9 @@ module Cosmos
       super()
       @x = x.to_i
       @y = y.to_i
+      @filename = filename
       @image = nil
-      filename = File.join(::Cosmos::USERPATH, 'config', 'data', filename)
-      unless File.exist?(filename)
-        raise "Can't find the file #{filename} in #{::Cosmos::USERPATH}/config/data"
-      end
-      @image = Qt::Image.new(filename)
       parent_layout.add_repaint(self)
-      @x_end = @x + @image.width
-      @y_end = @y + @image.height
     end
 
     def paint(painter)
@@ -38,6 +34,15 @@ module Cosmos
     def dispose
       super()
       @image.dispose
+    end
+
+    def process_settings
+      super
+      # We wait until here to find the image because we need @screen to be set
+      # to determine the target name to look in the target's screens directory
+      @image = get_image(@filename)
+      @x_end = @x + @image.width
+      @y_end = @y + @image.height
     end
   end
 end

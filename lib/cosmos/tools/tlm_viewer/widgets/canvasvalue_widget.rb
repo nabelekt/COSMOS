@@ -11,6 +11,10 @@
 require 'cosmos/tools/tlm_viewer/widgets/widget'
 
 module Cosmos
+  # Abstract class which provides helper methods to draw a telemetry point
+  # on a canvas. Has the ability to AND or OR together additional telemetry
+  # points to determine whether the value is "on" or not. Subclasses must
+  # implement draw_widget(draw_context, on_state).
   class CanvasvalueWidget
     include Widget
 
@@ -68,34 +72,38 @@ module Cosmos
       raise 'Override draw_widget to make this class work!'
     end
 
+    def set_setting(setting_name, setting_values)
+      if setting_name =~ /^TLM_/
+        @settings["#{setting_name.to_s.upcase}_#{setting_values.join('_')}"] = setting_values
+      else
+        super(setting_name, setting_values)
+      end
+    end
+
     def process_settings
       super
       @settings.each do |setting_name, setting_values|
-        begin
-          case setting_name
-          when 'VALUE_EQ'
-            @item_settings[0] = ['and', '==', setting_values[0]]
-          when 'VALUE_GT'
-            @item_settings[0] = ['and', '>', setting_values[0]]
-          when 'VALUE_GTEQ'
-            @item_settings[0] = ['and', '>=', setting_values[0]]
-          when 'VALUE_LT'
-            @item_settings[0] = ['and', '<', setting_values[0]]
-          when 'VALUE_LTEQ'
-            @item_settings[0] = ['and', '<=', setting_values[0]]
-          # TLM_AND allows a telemetry item to be dependant on another item for its state
-          when 'TLM_AND'
-            @items << [setting_values[0], setting_values[1], setting_values[2]]
-            @values << 0
-            set_item_settings('and', setting_values[3], setting_values[4])
-          # TLM_OR allows a telemetry item to be dependant on another item for its state
-          when 'TLM_OR'
-            @items << [setting_values[0], setting_values[1], setting_values[2]]
-            @values << 0
-            set_item_settings('or', setting_values[3], setting_values[4])
-          end
-        rescue => err
-          puts "Error Processing Settings!: #{err}"
+        case setting_name
+        when 'VALUE_EQ'
+          @item_settings[0] = ['and', '==', setting_values[0]]
+        when 'VALUE_GT'
+          @item_settings[0] = ['and', '>', setting_values[0]]
+        when 'VALUE_GTEQ'
+          @item_settings[0] = ['and', '>=', setting_values[0]]
+        when 'VALUE_LT'
+          @item_settings[0] = ['and', '<', setting_values[0]]
+        when 'VALUE_LTEQ'
+          @item_settings[0] = ['and', '<=', setting_values[0]]
+        # TLM_AND allows a telemetry item to be dependant on another item for its state
+        when /^TLM_AND/
+          @items << [setting_values[0], setting_values[1], setting_values[2]]
+          @values << 0
+          set_item_settings('and', setting_values[3], setting_values[4])
+        # TLM_OR allows a telemetry item to be dependant on another item for its state
+        when /^TLM_OR/
+          @items << [setting_values[0], setting_values[1], setting_values[2]]
+          @values << 0
+          set_item_settings('or', setting_values[3], setting_values[4])
         end
       end
     end

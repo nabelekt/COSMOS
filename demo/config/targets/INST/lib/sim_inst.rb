@@ -13,9 +13,9 @@
 require 'cosmos'
 
 module Cosmos
-
+  # Simulated instrument for the demo. Populates several packets and cycles
+  # the telemetry to simulate an active target.
   class SimInst < SimulatedTarget
-
     SOLAR_PANEL_DFLTS = [-179.0, 179.0, -179.0, 179.0, -95.0] unless defined? SOLAR_PANEL_DFLTS
 
     def initialize(target_name)
@@ -80,6 +80,11 @@ module Cosmos
       packet.enable_method_missing
       packet.CcsdsSeqFlags = 'NOGROUP'
       packet.CcsdsLength = packet.buffer.length - 7
+      packet.value1 = 0
+      packet.value2 = 1
+      packet.value3 = 2
+      packet.value4 = 1
+      packet.value5 = 0
 
       packet = @tlm_packets['IMAGE']
       packet.enable_method_missing
@@ -296,6 +301,11 @@ module Cosmos
         when 'IMAGE'
           packet.timesec = time.tv_sec
           packet.timeus = time.tv_usec
+          # Create an Array the size of the packet and then initialize
+          # using a sample of all possible hex values (0..15)
+          # finally pack it into binary using the Character 'C' specifier
+          data = Array.new(packet.length) { Array(0..15).sample }.pack("C*")
+          packet.buffer = data
           packet.ccsdsseqcnt += 1
 
         when 'MECH'
@@ -310,7 +320,9 @@ module Cosmos
         end
       end
 
-      pending_packets << Packet.new(nil, nil, :BIG_ENDIAN, nil, "\000" * 10) if @get_count == 300
+      # Every 10s throw an unknown packet at the server just to demo that
+      data = Array.new(10) { rand(0..255) }.pack("C*")
+      pending_packets << Packet.new(nil, nil, :BIG_ENDIAN, nil, data) if @get_count % 1000 == 0
 
       @get_count += 1
       pending_packets

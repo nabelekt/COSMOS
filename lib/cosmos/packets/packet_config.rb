@@ -60,6 +60,16 @@ module Cosmos
     #   packet is not.
     attr_reader :latest_data
 
+    # @return [Hash<String>=>Hash<Array>=>Packet] Hash keyed by target name
+    # that returns a hash keyed by an array of id values.  The id values resolve to the packet
+    # defined by that identification.  Command version
+    attr_reader :cmd_id_value_hash
+
+    # @return [Hash<String>=>Hash<Array>=>Packet] Hash keyed by target name
+    # that returns a hash keyed by an array of id values.  The id values resolve to the packet
+    # defined by that identification.  Telemetry version
+    attr_reader :tlm_id_value_hash
+
     COMMAND = "Command"
     TELEMETRY = "Telemetry"
 
@@ -73,6 +83,8 @@ module Cosmos
       # Returns an array of packets with that target and item.
       @latest_data = {}
       @warnings = []
+      @cmd_id_value_hash = {}
+      @tlm_id_value_hash = {}
 
       # Create unknown packets
       @commands['UNKNOWN'] = {}
@@ -91,7 +103,8 @@ module Cosmos
     # knowledge of the commands, telemetry, and limits groups.
     #
     # @param filename [String] The name of the configuration file
-    # @param process_target_name [String] The target name
+    # @param process_target_name [String] The target name. Pass nil when parsing
+    #   an xtce file to automatically determine the target name.
     def process_file(filename, process_target_name)
       # Handle .xtce files
       if File.extname(filename).to_s.downcase == ".xtce"
@@ -274,8 +287,16 @@ module Cosmos
         if @current_cmd_or_tlm == COMMAND
           PacketParser.check_item_data_types(@current_packet)
           @commands[@current_packet.target_name][@current_packet.packet_name] = @current_packet
+          hash = @cmd_id_value_hash[@current_packet.target_name]
+          hash = {} unless hash
+          @cmd_id_value_hash[@current_packet.target_name] = hash
+          update_id_value_hash(hash)
         else
           @telemetry[@current_packet.target_name][@current_packet.packet_name] = @current_packet
+          hash = @tlm_id_value_hash[@current_packet.target_name]
+          hash = {} unless hash
+          @tlm_id_value_hash[@current_packet.target_name] = hash
+          update_id_value_hash(hash)
         end
         @current_packet = nil
         @current_item = nil
@@ -283,6 +304,18 @@ module Cosmos
     end
 
     protected
+
+    def update_id_value_hash(hash)
+      if @current_packet.id_items.length > 0
+        key = []
+        @current_packet.id_items.each do |item|
+          key << item.id_value
+        end
+        hash[key] = @current_packet
+      else
+        hash['CATCHALL'.freeze] = @current_packet
+      end
+    end
 
     def reset_processing_variables
       @current_cmd_or_tlm = nil

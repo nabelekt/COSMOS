@@ -195,7 +195,7 @@ module Cosmos
         last_item = @sorted_items[-1]
         @sorted_items << item
         # If the current item or last item have a negative offset then we have
-        # to re-sort. We also re-sort if the current item is less than the less
+        # to re-sort. We also re-sort if the current item is less than the last
         # item because we are inserting.
         if last_item.bit_offset <= 0 or item.bit_offset <= 0 or item.bit_offset < last_item.bit_offset
           @sorted_items = @sorted_items.sort
@@ -370,12 +370,14 @@ module Cosmos
     #   parameter to check whether to perform conversions on the item.
     # @param indent [Integer] Amount to indent before printing the item name
     # @param buffer [String] The binary buffer to write the value to
+    # @param ignored [Array<String>] List of items to ignore when building the string
     # @return [String] String formatted with all the item names and values
-    def formatted(value_type = :RAW, indent = 0, buffer = @buffer)
+    def formatted(value_type = :RAW, indent = 0, buffer = @buffer, ignored = nil)
       indent_string = ' ' * indent
       string = ''
       synchronize_allow_reads(true) do
         @sorted_items.each do |item|
+          next if ignored && ignored.include?(item.name)
           if (item.data_type != :BLOCK) ||
              (item.data_type == :BLOCK and value_type != :RAW and
               item.respond_to? :read_conversion and item.read_conversion)

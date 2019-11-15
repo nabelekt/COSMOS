@@ -154,53 +154,48 @@ module Cosmos
     end
 
     def process_settings
-      errors = ""
       sheet = []
       @settings.each do |setting_name, setting_values|
-        begin
-          case setting_name
-          when 'TEXTALIGN'
-            sheet << "qproperty-alignment:Align#{setting_values[0].capitalize}"
-          when 'PADDING'
-            sheet << "padding:#{setting_values[0]}"
-          when 'MARGIN'
-            sheet << "margin:#{setting_values[0]}"
-          when 'BACKCOLOR'
-            case setting_values.size
-            when 1 # color name
-              sheet << "background-color:#{setting_values[0]}"
-            when 3 # RGB values
-              sheet << "background-color:rgb(#{setting_values[0].to_i},#{setting_values[1].to_i},#{setting_values[2].to_i})"
-            end
-          when 'TEXTCOLOR'
-            case setting_values.size
-            when 1 # color name
-              sheet << "color:#{setting_values[0]}"
-            when 3 # RGB values
-              sheet << "color:rgb(#{setting_values[0].to_i},#{setting_values[1].to_i},#{setting_values[2].to_i})"
-            end
-          when 'BORDERCOLOR'
-            # Setting the color requires a defined width and style
-            sheet << "border-width:1px"
-            sheet << "border-style:solid"
-            case setting_values.size
-            when 1 # color name
-              sheet << "border-color:#{setting_values[0]}"
-            when 3 # RGB values
-              sheet << "border-color:rgb(#{setting_values[0].to_i}, #{setting_values[1].to_i}, #{setting_values[2].to_i})"
-            end
-          when 'WIDTH'
-            sheet << "min-width:#{setting_values[0].to_i}px"
-            sheet << "max-width:#{setting_values[0].to_i}px"
-          when 'HEIGHT'
-            sheet << "min-height:#{setting_values[0].to_i}px"
-            sheet << "max-height:#{setting_values[0].to_i}px"
-          when 'RAW'
-            next if setting_values[0] == '' # ignore the blank default
-            sheet << setting_values[0]
+        case setting_name
+        when 'TEXTALIGN'
+          sheet << "qproperty-alignment:Align#{setting_values[0].capitalize}"
+        when 'PADDING'
+          sheet << "padding:#{setting_values[0]}"
+        when 'MARGIN'
+          sheet << "margin:#{setting_values[0]}"
+        when 'BACKCOLOR'
+          case setting_values.size
+          when 1 # color name
+            sheet << "background-color:#{setting_values[0]}"
+          when 3 # RGB values
+            sheet << "background-color:rgb(#{setting_values[0].to_i},#{setting_values[1].to_i},#{setting_values[2].to_i})"
           end
-        rescue => err
-          errors << "Error processing settings due to: #{err}"
+        when 'TEXTCOLOR'
+          case setting_values.size
+          when 1 # color name
+            sheet << "color:#{setting_values[0]}"
+          when 3 # RGB values
+            sheet << "color:rgb(#{setting_values[0].to_i},#{setting_values[1].to_i},#{setting_values[2].to_i})"
+          end
+        when 'BORDERCOLOR'
+          # Setting the color requires a defined width and style
+          sheet << "border-width:1px"
+          sheet << "border-style:solid"
+          case setting_values.size
+          when 1 # color name
+            sheet << "border-color:#{setting_values[0]}"
+          when 3 # RGB values
+            sheet << "border-color:rgb(#{setting_values[0].to_i}, #{setting_values[1].to_i}, #{setting_values[2].to_i})"
+          end
+        when 'WIDTH'
+          sheet << "min-width:#{setting_values[0].to_i}px"
+          sheet << "max-width:#{setting_values[0].to_i}px"
+        when 'HEIGHT'
+          sheet << "min-height:#{setting_values[0].to_i}px"
+          sheet << "max-height:#{setting_values[0].to_i}px"
+        when 'RAW'
+          next if setting_values[0] == '' # ignore the blank default
+          sheet << setting_values[0]
         end
       end
       # Only apply the stylesheet if we have settings to apply and this is a widget (not a layout)
@@ -215,7 +210,6 @@ module Cosmos
           pw.setStyleSheet("QWidget##{pw.objectName} { #{sheet.join(';')} }")
         end
       end
-      errors
     end
 
     def context_menu
@@ -249,7 +243,7 @@ module Cosmos
 
       graph = Qt::Action.new("Graph #{@target_name} #{@packet_name} #{@item_name}", menu)
       graph.connect(SIGNAL('triggered()')) do
-        TlmGraphDialog.new(self, target_name, packet_name, item_name)
+        TlmGraphDialog.new(self, target_name, packet_name, item_name, @screen.replay_flag.visible)
       end
       menu.addAction(graph)
 
@@ -257,6 +251,20 @@ module Cosmos
       menu.exec(mapToGlobal(point))
       point.dispose
       menu.dispose
+    end
+
+    # Requires the @screen to be set so must not be called in initialize()
+    def get_image(image_name)
+      return nil unless @screen
+      target_screen_dir = File.join(::Cosmos::USERPATH, 'config', 'targets', @screen.original_target_name.upcase, 'screens')
+
+      if File.exist?(File.join(target_screen_dir, image_name))
+        return Qt::Image.new(File.join(target_screen_dir, image_name))
+      elsif Cosmos.data_path(image_name)
+        return Qt::Image.new(Cosmos.data_path(image_name))
+      else
+        raise "Can't find the file #{image_name} in #{target_screen_dir} or the cosmos data directory."
+      end
     end
   end
 end
